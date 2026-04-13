@@ -1,0 +1,104 @@
+:root {
+  --bg: #101510;
+  --bg-accent: #1c261c;
+  --panel-bg: linear-gradient(180deg, rgba(24, 33, 25, 0.96), rgba(16, 21, 16, 0.98));
+  --panel-shadow: 0 20px 56px rgba(0, 0, 0, 0.28);
+  --text-main: #eef2df;
+  --text-soft: #b9c3b0;
+  --accent-soft: #e6be5c;
+  --line: rgba(182, 189, 148, 0.16);
+  --font-body: 'Segoe UI', 'Trebuchet MS', sans-serif;
+  --font-heading: 'Bahnschrift', 'Arial Narrow', sans-serif;
+
+  color: var(--text-main);
+  background:
+    radial-gradient(circle at top, rgba(70, 88, 54, 0.2), transparent 26%),
+    linear-gradient(180deg, #101510 0%, #0b0f0b 100%);
+  font-family: var(--font-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.55;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.012) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(circle at center, black, transparent 78%);
+}
+
+button,
+a {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+#root {
+  width: 100%;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading);
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+}
+
+h1 {
+  font-size: clamp(2.7rem, 5vw, 4.8rem);
+  max-width: 12ch;
+}
+
+h2 {
+  font-size: clamp(1.45rem, 2vw, 2.2rem);
+}
+
+h3 {
+  font-size: 1rem;
+}
+
+canvas {
+  display: block;
+}
+
+::selection {
+  background: rgba(230, 190, 92, 0.3);
+  color: #fff7d9;
+}
