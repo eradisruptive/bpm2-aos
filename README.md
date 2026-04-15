@@ -1,4 +1,5 @@
-# React + TypeScript + Vite
+# React + TypeScript + Vite Release v1: 3D Interaction Fixes and Environment
+Generate a concise changelog for the 'v1-release' pull request. Include the following points: added a floor plane to the 3D scene, fixed the drag-and-drop functionality for the main casing, implemented independent movement for all parts, and added a boundary constraint to prevent parts from falling below the floor
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
