@@ -1,5 +1,5 @@
 import type { QuizQuestion } from '../types/bmp2'
-import { bmp2Parts } from './bmp2Parts'
+import { bmp2Parts, groupMap } from './bmp2Parts'
 
 const baseOptions = ['Assembled', 'Exploded', 'Internal'] as const
 
@@ -29,7 +29,7 @@ function buildMultiSet(correct: string[], pool: string[], seed: number, optionCo
 }
 
 const locationPool = bmp2Parts.map((part) => part.location)
-const categoryPool = bmp2Parts.map((part) => part.category)
+const groupPool = bmp2Parts.map((part) => groupMap[part.groupId].name)
 const rolePool = bmp2Parts.map((part) => part.functionalRole)
 const allSpecs = bmp2Parts.flatMap((part) => part.specs)
 const allLecturePoints = bmp2Parts.flatMap((part) => part.lecturePoints)
@@ -48,10 +48,11 @@ function relatedParts(partId: string) {
   const current = bmp2Parts.find((part) => part.id === partId)
   if (!current) return bmp2Parts
 
-  return bmp2Parts.filter((candidate) => candidate.id !== partId && candidate.category === current.category)
+  return bmp2Parts.filter((candidate) => candidate.id !== partId && candidate.groupId === current.groupId)
 }
 
 export const testQuestions: QuizQuestion[] = bmp2Parts.flatMap((part, index) => {
+  const groupName = groupMap[part.groupId].name
   const partRelated = relatedParts(part.id)
   const partner = partRelated[0] ?? bmp2Parts[(index + 1) % bmp2Parts.length]
   const specChoices = buildMultiSet(part.specs.slice(0, 2), allSpecs, index, 5)
@@ -60,7 +61,7 @@ export const testQuestions: QuizQuestion[] = bmp2Parts.flatMap((part, index) => 
   const techChoices = buildMultiSet(technicalLabels.slice(0, 2), allTechnicalSpecs, index + 2, 5)
   const roleChoices = buildChoiceSet(rolePool, part.functionalRole, index)
   const locationChoices = buildChoiceSet(locationPool, part.location, index + 3)
-  const categoryChoices = buildChoiceSet(categoryPool, part.category, index + 4)
+  const groupChoices = buildChoiceSet(groupPool, groupName, index + 4)
   const nameChoices = buildChoiceSet(allNames, part.name, index + 5)
   const modeChoices = buildChoiceSet([...baseOptions], modeForPart(part.visibility), index + 6, 3)
   const partnerChoices = buildChoiceSet(allNames, partner.name, index + 7)
@@ -117,10 +118,10 @@ export const testQuestions: QuizQuestion[] = bmp2Parts.flatMap((part, index) => 
       id: `${part.id}-q6`,
       type: 'single',
       partId: part.id,
-      question: `To which category does the ${part.name} belong?`,
-      options: categoryChoices.options,
-      correctAnswers: categoryChoices.correctAnswers,
-      explanation: `${part.name} belongs to the ${part.category} category.`,
+      question: `To which training group does the ${part.name} belong?`,
+      options: groupChoices.options,
+      correctAnswers: groupChoices.correctAnswers,
+      explanation: `${part.name} belongs to the ${groupName} group.`,
     },
     {
       id: `${part.id}-q7`,
@@ -138,7 +139,7 @@ export const testQuestions: QuizQuestion[] = bmp2Parts.flatMap((part, index) => 
       question: `Which component would most naturally be studied alongside the ${part.name}?`,
       options: partnerChoices.options,
       correctAnswers: partnerChoices.correctAnswers,
-      explanation: `${partner.name} shares a close category or subsystem relationship with ${part.name}.`,
+      explanation: `${partner.name} shares a close group or subsystem relationship with ${part.name}.`,
     },
     {
       id: `${part.id}-q9`,
@@ -162,10 +163,10 @@ export const testQuestions: QuizQuestion[] = bmp2Parts.flatMap((part, index) => 
       id: `${part.id}-q11`,
       type: 'single',
       partId: part.id,
-      question: `During a lecture on ${part.category.toLowerCase()}, which BMP-2 element is the best match?`,
+      question: `During a lecture on ${groupName.toLowerCase()}, which BMP-2 element is the best match?`,
       options: nameChoices.options,
       correctAnswers: nameChoices.correctAnswers,
-      explanation: `${part.name} is one of the key ${part.category.toLowerCase()} study items.`,
+      explanation: `${part.name} is one of the key ${groupName.toLowerCase()} study items.`,
     },
     {
       id: `${part.id}-q12`,

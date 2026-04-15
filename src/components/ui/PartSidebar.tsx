@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom'
+import { groupMap, sectionMap } from '../../data/bmp2Parts'
 import type { TrainingStep, VehicleMode, VehiclePart } from '../../types/bmp2'
 
 type PartSidebarProps = {
   mode: VehicleMode
   selectedPart: VehiclePart | null
-  hoveredPart: VehiclePart | null
   activeStep: TrainingStep | null
   stepIndex: number
   totalSteps: number
@@ -27,7 +27,6 @@ const modes: { id: VehicleMode; label: string; description: string }[] = [
 export function PartSidebar({
   mode,
   selectedPart,
-  hoveredPart,
   activeStep,
   stepIndex,
   totalSteps,
@@ -40,8 +39,6 @@ export function PartSidebar({
   onPreviousStep,
   onNextStep,
 }: PartSidebarProps) {
-  const visiblePart = selectedPart ?? hoveredPart
-
   return (
     <aside className="panel sidebar-panel overlay-panel">
       <section className="panel-section">
@@ -103,33 +100,41 @@ export function PartSidebar({
 
       <section className="panel-section detail-panel">
         <p className="eyebrow">Selected Component</p>
-        {visiblePart ? (
+        {selectedPart ? (
           <>
-            <h2>{visiblePart.name}</h2>
-            <p className="muted-text">{visiblePart.description}</p>
-            <p className="lecture-role-preview compact">{visiblePart.functionalRole}</p>
+            <h2>{selectedPart.name}</h2>
+            <p className="muted-text">{selectedPart.description}</p>
+            <p className="lecture-role-preview compact">{selectedPart.functionalRole}</p>
             <dl className="detail-list">
               <div>
-                <dt>Category</dt>
-                <dd>{visiblePart.category}</dd>
+                <dt>Section</dt>
+                <dd>{sectionMap[selectedPart.sectionId].name}</dd>
+              </div>
+              <div>
+                <dt>Group</dt>
+                <dd>{groupMap[selectedPart.groupId].name}</dd>
               </div>
               <div>
                 <dt>Location</dt>
-                <dd>{visiblePart.location}</dd>
+                <dd>{selectedPart.location}</dd>
+              </div>
+              <div>
+                <dt>Draggable</dt>
+                <dd>{selectedPart.draggable ? 'Yes' : 'No'}</dd>
               </div>
             </dl>
             <ul className="spec-list compact">
-              {visiblePart.specs.map((item) => (
+              {selectedPart.specs.map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
-            <Link className="inline-link" to={`/parts/${visiblePart.id}`}>
+            <Link className="inline-link" to={`/parts/${selectedPart.id}`}>
               Open lecture page
             </Link>
           </>
         ) : (
           <p className="muted-text">
-            Hover or select a part in the scene to inspect it. Selecting detaches the component and activates a transform gizmo for free movement.
+            Hover highlights the element. Click a part to open its short description and controls here.
           </p>
         )}
       </section>

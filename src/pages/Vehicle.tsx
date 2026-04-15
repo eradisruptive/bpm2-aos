@@ -12,7 +12,6 @@ export default function Vehicle() {
     selectedPart,
     selectedPartId,
     selectPart,
-    hoveredPart,
     hoveredPartId,
     setHoveredPartId,
     activeStep,
@@ -40,6 +39,7 @@ export default function Vehicle() {
           onSelectPart={selectPart}
           onHoverPart={setHoveredPartId}
           onUpdatePartPosition={updatePartPosition}
+          onResetPartPosition={resetPartPosition}
           resetCameraSignal={resetCameraSignal}
         />
       </Suspense>
@@ -54,7 +54,6 @@ export default function Vehicle() {
         <PartSidebar
           mode={mode}
           selectedPart={selectedPart}
-          hoveredPart={hoveredPart}
           activeStep={activeStep}
           stepIndex={stepIndex}
           totalSteps={trainingSteps.length}

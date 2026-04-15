@@ -1,53 +1,64 @@
 import { memo, useEffect, useMemo, useRef } from 'react'
 import { animated, useSpring } from '@react-spring/three'
 import { Html } from '@react-three/drei'
+import type { ThreeEvent } from '@react-three/fiber'
 import type { Group } from 'three'
 import type { VehiclePart } from '../../types/bmp2'
 
 type BmpPartObjectProps = {
   part: VehiclePart
   position: [number, number, number]
+  draggable: boolean
   isSelected: boolean
   isHovered: boolean
+  isDragging: boolean
   isDetached: boolean
   labelsEnabled: boolean
   onSelect: (partId: string) => void
+  onPressStart: (partId: string, event: ThreeEvent<PointerEvent>) => void
+  onPressMove: (partId: string, event: ThreeEvent<PointerEvent>) => void
+  onPressEnd: (partId: string, event: ThreeEvent<PointerEvent>) => void
   onHover: (partId: string | null) => void
 }
 
-function getVisualState(part: VehiclePart, isSelected: boolean, isHovered: boolean) {
-  const emphasized = isSelected || isHovered
+function getVisualState(part: VehiclePart, isSelected: boolean, isHovered: boolean, isDragging: boolean) {
+  const emphasized = isSelected || isHovered || isDragging
 
   if (part.visibility === 'structure') {
     return {
       opacity: isSelected ? 0.52 : 0.26,
       roughness: 0.52,
       metalness: 0.12,
-      emissiveIntensity: emphasized ? 0.34 : 0.08,
+      emissiveIntensity: isDragging ? 0.52 : emphasized ? 0.34 : 0.08,
     }
   }
 
   return {
     opacity: 1,
-    roughness: emphasized ? 0.22 : 0.38,
+    roughness: isDragging ? 0.16 : emphasized ? 0.22 : 0.38,
     metalness: 0.18,
-    emissiveIntensity: emphasized ? 0.56 : 0.1,
+    emissiveIntensity: isDragging ? 0.78 : emphasized ? 0.56 : 0.1,
   }
 }
 
 export const BmpPartObject = memo(function BmpPartObject({
   part,
   position,
+  draggable,
   isSelected,
   isHovered,
+  isDragging,
   isDetached,
   labelsEnabled,
   onSelect,
+  onPressStart,
+  onPressMove,
+  onPressEnd,
   onHover,
 }: BmpPartObjectProps) {
   const groupRef = useRef<Group>(null)
-  const targetScale = isSelected ? 1.08 : isHovered ? 1.04 : 1
-  const visualState = useMemo(() => getVisualState(part, isSelected, isHovered), [isHovered, isSelected, part])
+  const targetScale = isDragging ? 1.12 : isSelected ? 1.08 : isHovered ? 1.04 : 1
+  const visualState = useMemo(() => getVisualState(part, isSelected, isHovered, isDragging), [isDragging, isHovered, isSelected, part])
 
   const springs = useSpring({
     positionX: position[0],
@@ -84,6 +95,22 @@ export const BmpPartObject = memo(function BmpPartObject({
         event.stopPropagation()
         onSelect(part.id)
       }}
+      onPointerDown={(event) => {
+        if (!draggable) return
+        const target = event.target as EventTarget & { setPointerCapture?: (pointerId: number) => void }
+        target.setPointerCapture?.(event.pointerId)
+        onPressStart(part.id, event)
+      }}
+      onPointerMove={(event) => {
+        if (!draggable) return
+        onPressMove(part.id, event)
+      }}
+      onPointerUp={(event) => {
+        if (!draggable) return
+        const target = event.target as EventTarget & { releasePointerCapture?: (pointerId: number) => void }
+        target.releasePointerCapture?.(event.pointerId)
+        onPressEnd(part.id, event)
+      }}
     >
       <mesh castShadow receiveShadow>
         {part.geometry.shape === 'box' ? (
@@ -104,7 +131,7 @@ export const BmpPartObject = memo(function BmpPartObject({
         />
       </mesh>
 
-      {labelsEnabled && (isSelected || isHovered) ? (
+      {labelsEnabled && isSelected ? (
         <Html
           position={[0, part.geometry.shape === 'box' ? part.geometry.size[1] * 0.7 : part.geometry.size[1] * 0.55, 0]}
           center
@@ -112,7 +139,7 @@ export const BmpPartObject = memo(function BmpPartObject({
         >
           <div className="part-label">
             <strong>{part.name}</strong>
-            <span>{isDetached ? 'Detached component' : part.category}</span>
+            <span>{isDetached ? 'Detached component' : 'Selected component'}</span>
           </div>
         </Html>
       ) : null}

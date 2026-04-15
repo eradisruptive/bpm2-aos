@@ -1,5 +1,11 @@
-import type { VehicleMode } from '../types/bmp2'
-import type { VehiclePart } from '../types/bmp2'
+import type {
+  VehicleGroup,
+  VehicleGroupId,
+  VehicleHierarchySection,
+  VehicleMode,
+  VehiclePart,
+  VehicleSection,
+} from '../types/bmp2'
 
 function createPlaceholders(name: string) {
   return [
@@ -16,11 +22,169 @@ function createPlaceholders(name: string) {
   ]
 }
 
-export const bmp2Parts: VehiclePart[] = [
+export const vehicleSections: VehicleSection[] = [
   {
+    id: 'exterior',
+    name: 'Exterior',
+    description: 'Visible external vehicle parts and mounted equipment.',
+  },
+  {
+    id: 'interior',
+    name: 'Interior',
+    description: 'Crew spaces, control areas, internal compartments, and carried resources.',
+  },
+  {
+    id: 'systems',
+    name: 'Systems',
+    description: 'Technical and mechanical subsystems that support operation and combat use.',
+  },
+]
+
+export const sectionMap = Object.fromEntries(vehicleSections.map((section) => [section.id, section])) as Record<
+  VehicleSection['id'],
+  VehicleSection
+>
+
+export const vehicleGroups: VehicleGroup[] = [
+  {
+    id: 'armor-structure',
+    sectionId: 'exterior',
+    name: 'Armor and Structure',
+    description: 'Hull, turret, armor geometry, and major protective structure.',
+  },
+  {
+    id: 'weapons-external',
+    sectionId: 'exterior',
+    name: 'Weapons (external)',
+    description: 'Externally mounted primary and secondary weapons.',
+  },
+  {
+    id: 'mobility',
+    sectionId: 'exterior',
+    name: 'Mobility',
+    description: 'Track and running gear components that move the vehicle.',
+  },
+  {
+    id: 'external-devices',
+    sectionId: 'exterior',
+    name: 'External Devices',
+    description: 'External observation, signaling, and utility-mounted devices.',
+  },
+  {
+    id: 'utility-equipment',
+    sectionId: 'exterior',
+    name: 'Utility Equipment',
+    description: 'Auxiliary mounted equipment for towing, transport, and mission support.',
+  },
+  {
+    id: 'crew-positions',
+    sectionId: 'interior',
+    name: 'Crew Positions',
+    description: 'Commander, gunner, and driver working positions.',
+  },
+  {
+    id: 'troop-compartment',
+    sectionId: 'interior',
+    name: 'Troop Compartment',
+    description: 'Infantry seating and transport area inside the vehicle.',
+  },
+  {
+    id: 'controls',
+    sectionId: 'interior',
+    name: 'Controls',
+    description: 'Control devices such as panels, levers, pedals, and indicators.',
+  },
+  {
+    id: 'observation-aiming',
+    sectionId: 'interior',
+    name: 'Observation and Aiming',
+    description: 'Internal observation and aiming interfaces for crew operation.',
+  },
+  {
+    id: 'communication',
+    sectionId: 'interior',
+    name: 'Communication',
+    description: 'Radio and intercom communication components.',
+  },
+  {
+    id: 'life-support',
+    sectionId: 'interior',
+    name: 'Life Support',
+    description: 'Ventilation, filtration, lighting, and fire suppression equipment.',
+  },
+  {
+    id: 'ammunition',
+    sectionId: 'interior',
+    name: 'Ammunition',
+    description: 'Stored ammunition and related stowage resources.',
+  },
+  {
+    id: 'engine',
+    sectionId: 'systems',
+    name: 'Engine',
+    description: 'Engine and connected start or cooling functions.',
+  },
+  {
+    id: 'transmission',
+    sectionId: 'systems',
+    name: 'Transmission',
+    description: 'Transmission, steering, and braking drive functions.',
+  },
+  {
+    id: 'fuel-system',
+    sectionId: 'systems',
+    name: 'Fuel System',
+    description: 'Fuel storage and delivery components.',
+  },
+  {
+    id: 'electrical-system',
+    sectionId: 'systems',
+    name: 'Electrical System',
+    description: 'Power generation, storage, and electrical distribution.',
+  },
+  {
+    id: 'weapon-systems',
+    sectionId: 'systems',
+    name: 'Weapon Systems',
+    description: 'Targeting, stabilization, and fire control subsystems.',
+  },
+  {
+    id: 'protection-systems',
+    sectionId: 'systems',
+    name: 'Protection Systems',
+    description: 'NBC, sealing, and smoke protection systems.',
+  },
+  {
+    id: 'amphibious-system',
+    sectionId: 'systems',
+    name: 'Amphibious System',
+    description: 'Water propulsion and sealed amphibious support systems.',
+  },
+]
+
+export const groupMap = Object.fromEntries(vehicleGroups.map((group) => [group.id, group])) as Record<VehicleGroupId, VehicleGroup>
+
+function createPart(part: VehiclePart): VehiclePart {
+  const group = groupMap[part.groupId]
+
+  if (!group) {
+    throw new Error(`Unknown group id: ${part.groupId} for part ${part.id}`)
+  }
+
+  if (group.sectionId !== part.sectionId) {
+    throw new Error(`Hierarchy mismatch for ${part.id}: group ${group.id} belongs to ${group.sectionId}, got ${part.sectionId}`)
+  }
+
+  return part
+}
+
+export const bmp2Parts: VehiclePart[] = [
+  createPart({
     id: 'hull',
     name: 'Hull and Frontal Armor',
-    category: 'Structure',
+    sectionId: 'exterior',
+    groupId: 'armor-structure',
+    draggable: true,
     visibility: 'structure',
     description:
       'The welded steel hull protects the crew and infantry squad, carries the running gear, and provides the base platform for the turret and internal systems.',
@@ -44,11 +208,13 @@ export const bmp2Parts: VehiclePart[] = [
     basePosition: [0, 1.1, 0],
     explodeDirection: [0, -0.25, 0],
     cameraOffset: [7, 4, 8],
-  },
-  {
+  }),
+  createPart({
     id: 'turret',
     name: 'Two-Man Turret',
-    category: 'Weapon System',
+    sectionId: 'exterior',
+    groupId: 'armor-structure',
+    draggable: true,
     visibility: 'structure',
     description:
       'The compact turret mounts the main gun, commander and gunner optics, and allows rapid all-round engagement while keeping the crew protected.',
@@ -72,11 +238,13 @@ export const bmp2Parts: VehiclePart[] = [
     basePosition: [0.2, 2.15, -0.1],
     explodeDirection: [0, 1.2, 0],
     cameraOffset: [5, 3, 5],
-  },
-  {
+  }),
+  createPart({
     id: 'cannon',
     name: '30 mm 2A42 Autocannon',
-    category: 'Weapon System',
+    sectionId: 'exterior',
+    groupId: 'weapons-external',
+    draggable: true,
     visibility: 'external',
     description:
       'The 30 mm cannon is the BMP-2 primary armament, capable of engaging light armor, infantry positions, and low-flying aerial targets.',
@@ -104,11 +272,13 @@ export const bmp2Parts: VehiclePart[] = [
     basePosition: [2.65, 2.22, 0.05],
     explodeDirection: [1.7, 0.25, 0],
     cameraOffset: [4, 2, 2],
-  },
-  {
+  }),
+  createPart({
     id: 'tracks',
     name: 'Track Assemblies',
-    category: 'Mobility',
+    sectionId: 'exterior',
+    groupId: 'mobility',
+    draggable: true,
     visibility: 'external',
     description:
       'Twin tracked running gear gives the BMP-2 cross-country mobility, trench crossing ability, and amphibious movement support.',
@@ -132,11 +302,13 @@ export const bmp2Parts: VehiclePart[] = [
     basePosition: [0, 0.5, 0],
     explodeDirection: [0, -0.9, 0],
     cameraOffset: [8, 3, 8],
-  },
-  {
+  }),
+  createPart({
     id: 'engine',
     name: 'UTD-20 Diesel Engine',
-    category: 'Powertrain',
+    sectionId: 'systems',
+    groupId: 'engine',
+    draggable: true,
     visibility: 'internal',
     description:
       'Mounted in the front-right compartment, the diesel engine powers the vehicle, drives the transmission, and supports onboard systems.',
@@ -160,11 +332,13 @@ export const bmp2Parts: VehiclePart[] = [
     basePosition: [1.7, 1.0, -0.8],
     explodeDirection: [1.3, 0.2, -1.2],
     cameraOffset: [3.6, 2.2, 2.8],
-  },
-  {
+  }),
+  createPart({
     id: 'transmission',
     name: 'Transmission Block',
-    category: 'Powertrain',
+    sectionId: 'systems',
+    groupId: 'transmission',
+    draggable: true,
     visibility: 'internal',
     description:
       'The transmission transfers engine output to the drive sprockets and is positioned forward to support compact mechanical routing.',
@@ -188,11 +362,13 @@ export const bmp2Parts: VehiclePart[] = [
     basePosition: [1.55, 0.95, 0.95],
     explodeDirection: [1.1, 0.15, 1.25],
     cameraOffset: [3.4, 2.1, -2.4],
-  },
-  {
+  }),
+  createPart({
     id: 'crew-compartment',
     name: 'Driver and Commander Stations',
-    category: 'Crew Systems',
+    sectionId: 'interior',
+    groupId: 'crew-positions',
+    draggable: true,
     visibility: 'internal',
     description:
       'This compartment houses the driver in the front-left position and connects to the commander and gunner workflow through observation and communication systems.',
@@ -216,11 +392,13 @@ export const bmp2Parts: VehiclePart[] = [
     basePosition: [0.9, 0.95, 0.95],
     explodeDirection: [-1.1, 0.2, 1.2],
     cameraOffset: [3.4, 2.4, -3.2],
-  },
-  {
+  }),
+  createPart({
     id: 'troop-bench',
     name: 'Infantry Compartment',
-    category: 'Crew Systems',
+    sectionId: 'interior',
+    groupId: 'troop-compartment',
+    draggable: true,
     visibility: 'internal',
     description:
       'The rear compartment seats embarked infantry, provides firing-port access, and serves as the main troop transport space during mechanized movement.',
@@ -244,11 +422,13 @@ export const bmp2Parts: VehiclePart[] = [
     basePosition: [-1.25, 0.95, 0],
     explodeDirection: [-1.6, 0.1, 0],
     cameraOffset: [5.5, 2.6, 0],
-  },
-  {
+  }),
+  createPart({
     id: 'ammo-rack',
     name: 'Ammunition Stowage',
-    category: 'Weapon Support',
+    sectionId: 'interior',
+    groupId: 'ammunition',
+    draggable: true,
     visibility: 'internal',
     description:
       'Ammunition bins and ready-use stowage support the autocannon and coaxial weapons while balancing safety, access, and crew workflow.',
@@ -272,11 +452,13 @@ export const bmp2Parts: VehiclePart[] = [
     basePosition: [-0.15, 1.15, -1.0],
     explodeDirection: [-0.8, 0.7, -1.4],
     cameraOffset: [3.4, 2.3, 3],
-  },
-  {
+  }),
+  createPart({
     id: 'fuel-system',
     name: 'Fuel Tanks and Feed Lines',
-    category: 'Support Systems',
+    sectionId: 'systems',
+    groupId: 'fuel-system',
+    draggable: true,
     visibility: 'internal',
     description:
       'Fuel storage is distributed to support endurance while keeping routing compact around the engine and troop spaces.',
@@ -300,11 +482,13 @@ export const bmp2Parts: VehiclePart[] = [
     basePosition: [-0.9, 0.85, 1.15],
     explodeDirection: [-1.1, 0.15, 1.5],
     cameraOffset: [4.5, 2.1, -2.8],
-  },
-  {
+  }),
+  createPart({
     id: 'optics',
     name: 'Sights and Observation Devices',
-    category: 'Electro-Optics',
+    sectionId: 'exterior',
+    groupId: 'external-devices',
+    draggable: true,
     visibility: 'external',
     description:
       'Optical devices provide observation, target acquisition, and gunnery support for the commander and gunner in both day and limited visibility conditions.',
@@ -328,37 +512,61 @@ export const bmp2Parts: VehiclePart[] = [
     basePosition: [0.95, 2.6, -0.55],
     explodeDirection: [0.8, 1.3, -1.1],
     cameraOffset: [3.2, 2.4, 2],
-  },
+  }),
 ]
 
-export const partMap = Object.fromEntries(bmp2Parts.map((part) => [part.id, part]))
+const seenPartIds = new Set<string>()
+for (const part of bmp2Parts) {
+  if (seenPartIds.has(part.id)) {
+    throw new Error(`Duplicate part id: ${part.id}`)
+  }
+
+  seenPartIds.add(part.id)
+}
+
+export const bmp2Hierarchy: VehicleHierarchySection[] = vehicleSections.map((section) => ({
+  section,
+  groups: vehicleGroups
+    .filter((group) => group.sectionId === section.id)
+    .map((group) => ({
+      group,
+      elements: bmp2Parts.filter((part) => part.groupId === group.id),
+    })),
+}))
+
+export const partMap = Object.fromEntries(bmp2Parts.map((part) => [part.id, part])) as Record<string, VehiclePart>
+const FLOOR_Y = 0
+
+function clampToFloor(position: [number, number, number]): [number, number, number] {
+  return [position[0], Math.max(position[1], FLOOR_Y), position[2]]
+}
 
 export function getPartTargetPosition(part: VehiclePart, mode: VehicleMode): [number, number, number] {
   if (mode === 'exploded') {
-    return [
+    return clampToFloor([
       part.basePosition[0] + part.explodeDirection[0] * 1.15,
       part.basePosition[1] + part.explodeDirection[1] * 1.15,
       part.basePosition[2] + part.explodeDirection[2] * 1.15,
-    ]
+    ])
   }
 
   if (mode === 'internal') {
     if (part.visibility === 'internal') {
-      return [
+      return clampToFloor([
         part.basePosition[0] + part.explodeDirection[0] * 0.45,
         part.basePosition[1] + part.explodeDirection[1] * 0.45,
         part.basePosition[2] + part.explodeDirection[2] * 0.45,
-      ]
+      ])
     }
 
     if (part.visibility === 'structure') {
-      return [
+      return clampToFloor([
         part.basePosition[0] + part.explodeDirection[0] * 0.1,
         part.basePosition[1] + part.explodeDirection[1] * 0.1,
         part.basePosition[2] + part.explodeDirection[2] * 0.1,
-      ]
+      ])
     }
   }
 
-  return part.basePosition
+  return clampToFloor(part.basePosition)
 }

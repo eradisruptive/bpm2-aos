@@ -1,5 +1,41 @@
 export type VehicleMode = 'assembled' | 'exploded' | 'internal'
 
+export type VehicleSectionId = 'exterior' | 'interior' | 'systems'
+
+export type VehicleGroupId =
+  | 'armor-structure'
+  | 'weapons-external'
+  | 'mobility'
+  | 'external-devices'
+  | 'utility-equipment'
+  | 'crew-positions'
+  | 'troop-compartment'
+  | 'controls'
+  | 'observation-aiming'
+  | 'communication'
+  | 'life-support'
+  | 'ammunition'
+  | 'engine'
+  | 'transmission'
+  | 'fuel-system'
+  | 'electrical-system'
+  | 'weapon-systems'
+  | 'protection-systems'
+  | 'amphibious-system'
+
+export interface VehicleSection {
+  id: VehicleSectionId
+  name: string
+  description: string
+}
+
+export interface VehicleGroup {
+  id: VehicleGroupId
+  sectionId: VehicleSectionId
+  name: string
+  description: string
+}
+
 export type PartVisibility = 'external' | 'internal' | 'structure'
 export type PrimitiveShape = 'box' | 'cylinder'
 
@@ -23,7 +59,9 @@ export interface TechnicalSpecification {
 export interface VehiclePart {
   id: string
   name: string
-  category: string
+  sectionId: VehicleSectionId
+  groupId: VehicleGroupId
+  draggable: boolean
   visibility: PartVisibility
   description: string
   functionalRole: string
@@ -37,6 +75,16 @@ export interface VehiclePart {
   basePosition: [number, number, number]
   explodeDirection: [number, number, number]
   cameraOffset?: [number, number, number]
+}
+
+export interface VehicleHierarchyGroup {
+  group: VehicleGroup
+  elements: VehiclePart[]
+}
+
+export interface VehicleHierarchySection {
+  section: VehicleSection
+  groups: VehicleHierarchyGroup[]
 }
 
 export interface TrainingStep {

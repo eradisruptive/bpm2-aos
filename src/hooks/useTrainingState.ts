@@ -4,6 +4,11 @@ import { trainingSteps } from '../data/trainingSteps'
 import type { VehicleMode } from '../types/bmp2'
 
 type PartPositionMap = Record<string, [number, number, number]>
+const FLOOR_Y = 0
+
+function clampToFloor(position: [number, number, number]): [number, number, number] {
+  return [position[0], Math.max(position[1], FLOOR_Y), position[2]]
+}
 
 export function useTrainingState(initialPartId?: string, initialMode: VehicleMode = 'assembled') {
   const [mode, setModeState] = useState<VehicleMode>(initialMode)
@@ -29,10 +34,10 @@ export function useTrainingState(initialPartId?: string, initialMode: VehicleMod
   const getPartPosition = useCallback(
     (partId: string) => {
       const detached = detachedPositions[partId]
-      if (detached) return detached
+      if (detached) return clampToFloor(detached)
 
       const part = partMap[partId]
-      return part ? getPartTargetPosition(part, mode) : [0, 0, 0]
+      return part ? getPartTargetPosition(part, mode) : [0, FLOOR_Y, 0]
     },
     [detachedPositions, mode],
   )
@@ -46,7 +51,7 @@ export function useTrainingState(initialPartId?: string, initialMode: VehicleMod
         if (current[partId]) return current
         return {
           ...current,
-          [partId]: getPartTargetPosition(part, mode),
+          [partId]: clampToFloor(getPartTargetPosition(part, mode)),
         }
       })
     },
@@ -56,7 +61,7 @@ export function useTrainingState(initialPartId?: string, initialMode: VehicleMod
   const updatePartPosition = useCallback((partId: string, position: [number, number, number]) => {
     setDetachedPositions((current) => ({
       ...current,
-      [partId]: position,
+      [partId]: clampToFloor(position),
     }))
   }, [])
 
@@ -99,7 +104,7 @@ export function useTrainingState(initialPartId?: string, initialMode: VehicleMod
         if (current[nextStep.partId]) return current
         return {
           ...current,
-          [nextStep.partId]: getPartTargetPosition(partMap[nextStep.partId], nextStep.recommendedMode),
+          [nextStep.partId]: clampToFloor(getPartTargetPosition(partMap[nextStep.partId], nextStep.recommendedMode)),
         }
       })
     },
@@ -117,7 +122,7 @@ export function useTrainingState(initialPartId?: string, initialMode: VehicleMod
           if (positions[nextStep.partId]) return positions
           return {
             ...positions,
-            [nextStep.partId]: getPartTargetPosition(partMap[nextStep.partId], nextStep.recommendedMode),
+            [nextStep.partId]: clampToFloor(getPartTargetPosition(partMap[nextStep.partId], nextStep.recommendedMode)),
           }
         })
       }
@@ -136,7 +141,7 @@ export function useTrainingState(initialPartId?: string, initialMode: VehicleMod
           if (positions[nextStep.partId]) return positions
           return {
             ...positions,
-            [nextStep.partId]: getPartTargetPosition(partMap[nextStep.partId], nextStep.recommendedMode),
+            [nextStep.partId]: clampToFloor(getPartTargetPosition(partMap[nextStep.partId], nextStep.recommendedMode)),
           }
         })
       }

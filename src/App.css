@@ -81,8 +81,20 @@
   gap: 1rem;
 }
 
+.catalog-section {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.group-stack {
+  display: grid;
+  gap: 0.9rem;
+}
+
 .overview-card,
 .catalog-card,
+.section-panel,
+.group-panel,
 .detail-page-panel,
 .detail-viewer-panel,
 .related-panel,
@@ -304,7 +316,8 @@
 }
 
 .step-pill,
-.category-pill {
+.category-pill,
+.section-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -315,6 +328,11 @@
   color: var(--accent-soft);
   font-size: 0.82rem;
   font-weight: 700;
+}
+
+.section-pill {
+  background: rgba(143, 177, 129, 0.14);
+  color: #9cc48e;
 }
 
 .detail-list {
@@ -377,6 +395,8 @@
 
 .lecture-card,
 .catalog-header,
+.section-panel,
+.group-panel,
 .detail-page-panel,
 .detail-viewer-panel,
 .related-panel,
@@ -395,6 +415,10 @@
   gap: 0.75rem;
   align-items: center;
   margin-bottom: 0.75rem;
+}
+
+.group-panel .catalog-grid {
+  margin-top: 0.95rem;
 }
 
 .color-chip {

@@ -1,21 +1,15 @@
-import { Suspense, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, memo, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
-import {
-  CameraControls,
-  ContactShadows,
-  Environment,
-  Grid,
-  Html,
-  PerspectiveCamera,
-  TransformControls,
-} from '@react-three/drei'
+import type { ThreeEvent } from '@react-three/fiber'
+import { CameraControls, ContactShadows, Environment, Grid, Html, PerspectiveCamera } from '@react-three/drei'
 import type { CameraControls as CameraControlsImpl } from '@react-three/drei'
-import type { Group } from 'three'
 import { bmp2Parts, getPartTargetPosition, partMap } from '../../data/bmp2Parts'
+import { usePartDrag, type DragReleaseBehavior } from '../../hooks/usePartDrag'
 import type { VehicleMode } from '../../types/bmp2'
 import { BmpPartObject } from './BmpPartObject'
 
 type DetachedPositions = Record<string, [number, number, number]>
+const FLOOR_Y = 0
 
 type BmpTrainingViewerProps = {
   mode: VehicleMode
@@ -25,9 +19,11 @@ type BmpTrainingViewerProps = {
   labelsEnabled?: boolean
   interactive?: boolean
   fullscreen?: boolean
-  onSelectPart: (partId: string) => void
+  dragReleaseBehavior?: DragReleaseBehavior
+  onSelectPart: (partId: string | null) => void
   onHoverPart: (partId: string | null) => void
   onUpdatePartPosition?: (partId: string, position: [number, number, number]) => void
+  onResetPartPosition?: (partId: string) => void
   resetCameraSignal: number
 }
 
@@ -98,21 +94,41 @@ function FocusRig({
   )
 }
 
+type SceneContentProps = {
+  mode: VehicleMode
+  selectedPartId: string | null
+  hoveredPartId: string | null
+  detachedPositions: DetachedPositions
+  labelsEnabled: boolean
+  dragEnabled: boolean
+  draggingPartId: string | null
+  isDragging: boolean
+  onSelectPart: (partId: string) => void
+  onHoverPart: (partId: string | null) => void
+  onPartPointerDown: (partId: string, event: ThreeEvent<PointerEvent>) => void
+  onPartPointerMove: (partId: string, event: ThreeEvent<PointerEvent>) => void
+  onPartPointerUp: (partId: string, event: ThreeEvent<PointerEvent>) => void
+  resolvePosition: (partId: string) => [number, number, number]
+  resetCameraSignal: number
+}
+
 const SceneContent = memo(function SceneContent({
   mode,
   selectedPartId,
   hoveredPartId,
-  detachedPositions = {},
-  labelsEnabled = true,
-  interactive = true,
+  detachedPositions,
+  labelsEnabled,
+  dragEnabled,
+  draggingPartId,
+  isDragging,
   onSelectPart,
   onHoverPart,
-  onUpdatePartPosition,
+  onPartPointerDown,
+  onPartPointerMove,
+  onPartPointerUp,
+  resolvePosition,
   resetCameraSignal,
-}: BmpTrainingViewerProps) {
-  const [isTransforming, setIsTransforming] = useState(false)
-  const selectedObjectRef = useRef<Group | null>(null)
-
+}: SceneContentProps) {
   const visibleParts = useMemo(
     () =>
       bmp2Parts.filter((part) => {
@@ -124,32 +140,6 @@ const SceneContent = memo(function SceneContent({
       }),
     [mode],
   )
-
-  const selectedPart = useMemo(
-    () => visibleParts.find((part) => part.id === selectedPartId) ?? null,
-    [selectedPartId, visibleParts],
-  )
-
-  const regularParts = useMemo(
-    () => visibleParts.filter((part) => !interactive || part.id !== selectedPartId),
-    [interactive, selectedPartId, visibleParts],
-  )
-
-  const resolvePosition = useCallback(
-    (partId: string) => {
-      const detached = detachedPositions[partId]
-      if (detached) return detached
-      return getPartTargetPosition(partMap[partId], mode)
-    },
-    [detachedPositions, mode],
-  )
-
-  const handleObjectChange = useCallback(() => {
-    if (!selectedPart || !selectedObjectRef.current || !onUpdatePartPosition) return
-
-    const { x, y, z } = selectedObjectRef.current.position
-    onUpdatePartPosition(selectedPart.id, [x, y, z])
-  }, [onUpdatePartPosition, selectedPart])
 
   return (
     <>
@@ -166,6 +156,10 @@ const SceneContent = memo(function SceneContent({
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
       />
+      <mesh receiveShadow position={[0, FLOOR_Y - 0.1, 0]}>
+        <boxGeometry args={[80, 0.2, 80]} />
+        <meshStandardMaterial color="#1f2a20" roughness={0.92} metalness={0.03} />
+      </mesh>
 
       <Suspense
         fallback={
@@ -174,82 +168,157 @@ const SceneContent = memo(function SceneContent({
           </Html>
         }
       >
-        {regularParts.map((part) => (
+        {visibleParts.map((part) => (
           <BmpPartObject
             key={part.id}
             part={part}
             position={resolvePosition(part.id)}
+            draggable={dragEnabled && part.draggable}
             isSelected={selectedPartId === part.id}
             isHovered={hoveredPartId === part.id}
-            isDetached={Boolean(detachedPositions[part.id])}
+            isDragging={draggingPartId === part.id}
+            isDetached={Boolean(detachedPositions[part.id]) || draggingPartId === part.id}
             labelsEnabled={labelsEnabled}
             onSelect={onSelectPart}
+            onPressStart={onPartPointerDown}
+            onPressMove={onPartPointerMove}
+            onPressEnd={onPartPointerUp}
             onHover={onHoverPart}
           />
         ))}
-
-        {interactive && selectedPart ? (
-          <TransformControls
-            mode="translate"
-            size={0.85}
-            onMouseDown={() => setIsTransforming(true)}
-            onMouseUp={() => setIsTransforming(false)}
-            onObjectChange={handleObjectChange}
-          >
-            <group ref={selectedObjectRef} position={resolvePosition(selectedPart.id)}>
-              <BmpPartObject
-                part={selectedPart}
-                position={[0, 0, 0]}
-                isSelected
-                isHovered={hoveredPartId === selectedPart.id}
-                isDetached
-                labelsEnabled={labelsEnabled}
-                onSelect={onSelectPart}
-                onHover={onHoverPart}
-              />
-            </group>
-          </TransformControls>
-        ) : selectedPart ? (
-          <BmpPartObject
-            part={selectedPart}
-            position={resolvePosition(selectedPart.id)}
-            isSelected
-            isHovered={hoveredPartId === selectedPart.id}
-            isDetached={Boolean(detachedPositions[selectedPart.id])}
-            labelsEnabled={labelsEnabled}
-            onSelect={onSelectPart}
-            onHover={onHoverPart}
-          />
-        ) : null}
 
         <Environment preset="sunset" />
       </Suspense>
 
       <Grid
-        position={[0, 0, 0]}
+        position={[0, FLOOR_Y, 0]}
         args={[40, 40]}
         cellColor="#36503a"
         sectionColor="#688d68"
         fadeDistance={32}
         fadeStrength={1.5}
       />
-      <ContactShadows position={[0, 0.01, 0]} opacity={0.45} width={20} height={20} blur={2.4} far={10} />
+      <ContactShadows position={[0, FLOOR_Y + 0.01, 0]} opacity={0.45} width={20} height={20} blur={2.4} far={10} />
       <FocusRig
         mode={mode}
         selectedPartId={selectedPartId}
         detachedPositions={detachedPositions}
         resetCameraSignal={resetCameraSignal}
-        controlsEnabled={!isTransforming}
+        controlsEnabled={!isDragging}
       />
     </>
   )
 })
 
-export function BmpTrainingViewer({ fullscreen = false, ...props }: BmpTrainingViewerProps) {
+export function BmpTrainingViewer({
+  mode,
+  selectedPartId,
+  hoveredPartId,
+  detachedPositions = {},
+  labelsEnabled = true,
+  interactive = true,
+  fullscreen = false,
+  dragReleaseBehavior = 'persist',
+  onSelectPart,
+  onHoverPart,
+  onUpdatePartPosition,
+  onResetPartPosition,
+  resetCameraSignal,
+}: BmpTrainingViewerProps) {
+  const resolvePosition = useCallback(
+    (partId: string) => {
+      const detached = detachedPositions[partId]
+      if (detached) return detached
+      return getPartTargetPosition(partMap[partId], mode)
+    },
+    [detachedPositions, mode],
+  )
+
+  const updatePartPosition = useCallback(
+    (partId: string, position: [number, number, number]) => {
+      if (!onUpdatePartPosition) return
+      onUpdatePartPosition(partId, position)
+    },
+    [onUpdatePartPosition],
+  )
+
+  const dragEnabled = interactive && Boolean(onUpdatePartPosition)
+
+  const {
+    draggingPartId,
+    isDragging,
+    handlePartPointerDown,
+    handleScenePointerMove,
+    handleScenePointerUp,
+    consumeSuppressedClick,
+  } = usePartDrag({
+    enabled: dragEnabled,
+    dragReleaseBehavior,
+    minY: FLOOR_Y,
+    isPartDraggable: (partId) => Boolean(partMap[partId]?.draggable),
+    getPartPosition: resolvePosition,
+    onSelectPart,
+    onUpdatePartPosition: updatePartPosition,
+    onResetPartPosition,
+  })
+
+  const handleSelectPart = useCallback(
+    (partId: string) => {
+      if (consumeSuppressedClick()) return
+      if (selectedPartId === partId) {
+        onSelectPart(null)
+        return
+      }
+
+      onSelectPart(partId)
+    },
+    [consumeSuppressedClick, onSelectPart, selectedPartId],
+  )
+
+  const handleHoverPart = useCallback(
+    (partId: string | null) => {
+      if (isDragging) return
+      onHoverPart(partId)
+    },
+    [isDragging, onHoverPart],
+  )
+
+  useEffect(() => {
+    if (!isDragging) return
+    onHoverPart(null)
+  }, [isDragging, onHoverPart])
+
+  const handlePartPointerMove = useCallback(
+    (_partId: string, event: ThreeEvent<PointerEvent>) => {
+      handleScenePointerMove(event)
+    },
+    [handleScenePointerMove],
+  )
+
+  const handlePartPointerUp = useCallback(() => {
+    handleScenePointerUp()
+  }, [handleScenePointerUp])
+
   return (
     <div className={fullscreen ? 'viewer-shell fullscreen' : 'viewer-shell'}>
       <Canvas shadows dpr={[1, 1.8]}>
-        <SceneContent {...props} />
+        <SceneContent
+          mode={mode}
+          selectedPartId={selectedPartId}
+          hoveredPartId={hoveredPartId}
+          detachedPositions={detachedPositions}
+          labelsEnabled={labelsEnabled}
+          dragEnabled={dragEnabled}
+          draggingPartId={draggingPartId}
+          isDragging={isDragging}
+          onSelectPart={handleSelectPart}
+          onHoverPart={handleHoverPart}
+          onPartPointerDown={handlePartPointerDown}
+          onPartPointerMove={handlePartPointerMove}
+          onPartPointerUp={handlePartPointerUp}
+          resolvePosition={resolvePosition}
+          resetCameraSignal={resetCameraSignal}
+        />
       </Canvas>
     </div>
   )

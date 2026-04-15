@@ -1,6 +1,6 @@
 import { Suspense, lazy } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { bmp2Parts, partMap } from '../data/bmp2Parts'
+import { bmp2Parts, groupMap, partMap, sectionMap } from '../data/bmp2Parts'
 
 const BmpTrainingViewer = lazy(() => import('../components/vehicle/BmpTrainingViewer'))
 
@@ -28,6 +28,9 @@ export default function PartDetail() {
       <section className="panel detail-page-panel lecture-hero-panel">
         <p className="eyebrow">Lecture Page</p>
         <h2>{part.name}</h2>
+        <p className="lecture-role-preview">
+          {sectionMap[part.sectionId].name} / {groupMap[part.groupId].name}
+        </p>
         <p className="muted-text">{part.description}</p>
         <p className="lecture-role">{part.functionalRole}</p>
         <div className="button-row">
@@ -103,7 +106,7 @@ export default function PartDetail() {
         <p className="eyebrow">Related Lecture Pages</p>
         <div className="related-links">
           {bmp2Parts
-            .filter((item) => item.category === part.category && item.id !== part.id)
+            .filter((item) => item.groupId === part.groupId && item.id !== part.id)
             .slice(0, 3)
             .map((item) => (
               <Link key={item.id} className="inline-link" to={`/parts/${item.id}`}>
