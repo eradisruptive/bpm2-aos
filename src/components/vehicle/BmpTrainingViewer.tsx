@@ -3,13 +3,46 @@ import { Canvas } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import { CameraControls, ContactShadows, Environment, Grid, Html, PerspectiveCamera } from '@react-three/drei'
 import type { CameraControls as CameraControlsImpl } from '@react-three/drei'
+import { Euler, Matrix4 } from 'three'
 import { bmp2Parts, getPartTargetPosition, partMap } from '../../data/bmp2Parts'
 import { usePartDrag, type DragReleaseBehavior } from '../../hooks/usePartDrag'
-import type { VehicleMode } from '../../types/bmp2'
+import type { VehicleMode, VehiclePart } from '../../types/bmp2'
 import { BmpPartObject } from './BmpPartObject'
 
 type DetachedPositions = Record<string, [number, number, number]>
 const FLOOR_Y = 0
+const MAX_VISUAL_SCALE = 1.12
+const FLOOR_EPSILON = 0.001
+
+function getHalfExtents(part: VehiclePart): [number, number, number] {
+  if (part.geometry.shape === 'box') {
+    return [part.geometry.size[0] / 2, part.geometry.size[1] / 2, part.geometry.size[2] / 2]
+  }
+
+  // Cylinder local AABB extents (x/z radius, y half-height)
+  return [part.geometry.size[0], part.geometry.size[1] / 2, part.geometry.size[0]]
+}
+
+function getWorldYHalfExtent(part: VehiclePart) {
+  const [hx, hy, hz] = getHalfExtents(part)
+  const rotation = part.geometry.rotation
+  if (!rotation) return hy
+
+  const matrix = new Matrix4().makeRotationFromEuler(new Euler(rotation[0], rotation[1], rotation[2], 'XYZ'))
+  const elements = matrix.elements
+  return Math.abs(elements[1]) * hx + Math.abs(elements[5]) * hy + Math.abs(elements[9]) * hz
+}
+
+function getPartMinCenterY(part: VehiclePart) {
+  return FLOOR_Y + getWorldYHalfExtent(part) * MAX_VISUAL_SCALE + FLOOR_EPSILON
+}
+
+const partMinCenterYMap = Object.fromEntries(bmp2Parts.map((part) => [part.id, getPartMinCenterY(part)])) as Record<string, number>
+
+function clampPartPosition(partId: string, position: [number, number, number]): [number, number, number] {
+  const minCenterY = partMinCenterYMap[partId] ?? FLOOR_Y
+  return [position[0], Math.max(minCenterY, position[1]), position[2]]
+}
 
 type BmpTrainingViewerProps = {
   mode: VehicleMode
@@ -108,6 +141,7 @@ type SceneContentProps = {
   onPartPointerDown: (partId: string, event: ThreeEvent<PointerEvent>) => void
   onPartPointerMove: (partId: string, event: ThreeEvent<PointerEvent>) => void
   onPartPointerUp: (partId: string, event: ThreeEvent<PointerEvent>) => void
+  onBackgroundClick: () => void
   resolvePosition: (partId: string) => [number, number, number]
   resetCameraSignal: number
 }
@@ -126,6 +160,7 @@ const SceneContent = memo(function SceneContent({
   onPartPointerDown,
   onPartPointerMove,
   onPartPointerUp,
+  onBackgroundClick,
   resolvePosition,
   resetCameraSignal,
 }: SceneContentProps) {
@@ -156,7 +191,14 @@ const SceneContent = memo(function SceneContent({
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
       />
-      <mesh receiveShadow position={[0, FLOOR_Y - 0.1, 0]}>
+      <mesh
+        receiveShadow
+        position={[0, FLOOR_Y - 0.1, 0]}
+        onClick={(event) => {
+          event.stopPropagation()
+          onBackgroundClick()
+        }}
+      >
         <boxGeometry args={[80, 0.2, 80]} />
         <meshStandardMaterial color="#1f2a20" roughness={0.92} metalness={0.03} />
       </mesh>
@@ -228,8 +270,12 @@ export function BmpTrainingViewer({
   const resolvePosition = useCallback(
     (partId: string) => {
       const detached = detachedPositions[partId]
-      if (detached) return detached
-      return getPartTargetPosition(partMap[partId], mode)
+      if (detached) {
+        return clampPartPosition(partId, detached)
+      }
+
+      const target = getPartTargetPosition(partMap[partId], mode)
+      return clampPartPosition(partId, target)
     },
     [detachedPositions, mode],
   )
@@ -237,7 +283,7 @@ export function BmpTrainingViewer({
   const updatePartPosition = useCallback(
     (partId: string, position: [number, number, number]) => {
       if (!onUpdatePartPosition) return
-      onUpdatePartPosition(partId, position)
+      onUpdatePartPosition(partId, clampPartPosition(partId, position))
     },
     [onUpdatePartPosition],
   )
@@ -255,6 +301,7 @@ export function BmpTrainingViewer({
     enabled: dragEnabled,
     dragReleaseBehavior,
     minY: FLOOR_Y,
+    getPartMinY: (partId) => partMinCenterYMap[partId] ?? FLOOR_Y,
     isPartDraggable: (partId) => Boolean(partMap[partId]?.draggable),
     getPartPosition: resolvePosition,
     onSelectPart,
@@ -299,9 +346,24 @@ export function BmpTrainingViewer({
     handleScenePointerUp()
   }, [handleScenePointerUp])
 
+  const handleBackgroundClick = useCallback(() => {
+    if (isDragging) return
+    if (consumeSuppressedClick()) return
+
+    onHoverPart(null)
+    onSelectPart(null)
+  }, [consumeSuppressedClick, isDragging, onHoverPart, onSelectPart])
+
   return (
     <div className={fullscreen ? 'viewer-shell fullscreen' : 'viewer-shell'}>
-      <Canvas shadows dpr={[1, 1.8]}>
+      <Canvas
+        shadows
+        dpr={[1, 1.8]}
+        onPointerMissed={(event) => {
+          event.stopPropagation()
+          handleBackgroundClick()
+        }}
+      >
         <SceneContent
           mode={mode}
           selectedPartId={selectedPartId}
@@ -316,6 +378,7 @@ export function BmpTrainingViewer({
           onPartPointerDown={handlePartPointerDown}
           onPartPointerMove={handlePartPointerMove}
           onPartPointerUp={handlePartPointerUp}
+          onBackgroundClick={handleBackgroundClick}
           resolvePosition={resolvePosition}
           resetCameraSignal={resetCameraSignal}
         />

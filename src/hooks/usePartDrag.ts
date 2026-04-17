@@ -15,6 +15,7 @@ type UsePartDragOptions = {
   holdDelayMs?: number
   dragReleaseBehavior?: DragReleaseBehavior
   minY?: number
+  getPartMinY?: (partId: string) => number
   isPartDraggable: (partId: string) => boolean
   getPartPosition: (partId: string) => [number, number, number]
   onSelectPart: (partId: string) => void
@@ -30,6 +31,7 @@ export function usePartDrag({
   holdDelayMs = DEFAULT_HOLD_DELAY_MS,
   dragReleaseBehavior = 'persist',
   minY = 0,
+  getPartMinY,
   isPartDraggable,
   getPartPosition,
   onSelectPart,
@@ -70,15 +72,16 @@ export function usePartDrag({
     onSelectPart(pending.partId)
     activeDragRef.current = pending
 
+    const partMinY = getPartMinY?.(pending.partId) ?? minY
     const [x, y, z] = getPartPosition(pending.partId)
-    const clampedStart = new Vector3(x, Math.max(y, minY), z)
+    const clampedStart = new Vector3(x, Math.max(y, partMinY), z)
     smoothedPositionRef.current = clampedStart
     lastMoveTimestampRef.current = null
     if (clampedStart.y !== y) {
       onUpdatePartPosition(pending.partId, [clampedStart.x, clampedStart.y, clampedStart.z])
     }
     setDraggingPartId(pending.partId)
-  }, [clearPendingTimer, enabled, getPartPosition, minY, onSelectPart, onUpdatePartPosition])
+  }, [clearPendingTimer, enabled, getPartMinY, getPartPosition, minY, onSelectPart, onUpdatePartPosition])
 
   const finishDrag = useCallback(
     (suppressClick: boolean) => {
@@ -149,8 +152,9 @@ export function usePartDrag({
       const hasIntersection = event.ray.intersectPlane(dragPlane, dragHitPoint)
       if (!hasIntersection) return
 
+      const partMinY = getPartMinY?.(activeDrag.partId) ?? minY
       const targetX = dragHitPoint.x + activeDrag.grabOffset.x
-      const targetY = Math.max(dragHitPoint.y + activeDrag.grabOffset.y, minY)
+      const targetY = Math.max(dragHitPoint.y + activeDrag.grabOffset.y, partMinY)
       const targetZ = dragHitPoint.z + activeDrag.grabOffset.z
 
       if (!smoothedPositionRef.current) {
@@ -166,13 +170,13 @@ export function usePartDrag({
         smoothed.x += (targetX - smoothed.x) * alpha
         smoothed.y += (targetY - smoothed.y) * alpha
         smoothed.z += (targetZ - smoothed.z) * alpha
-        smoothed.y = Math.max(smoothed.y, minY)
+        smoothed.y = Math.max(smoothed.y, partMinY)
       }
 
       const smoothed = smoothedPositionRef.current
       onUpdatePartPosition(activeDrag.partId, [smoothed.x, smoothed.y, smoothed.z])
     },
-    [minY, onUpdatePartPosition],
+    [getPartMinY, minY, onUpdatePartPosition],
   )
 
   const handleScenePointerUp = useCallback(() => {
